@@ -34,7 +34,7 @@ public:
 	template<typename T> void set(const std::string& key, const T& value)
 	{
 		if (exists(key))
-			thrower("Duplicate key");
+			throw("Duplicate key");
 
 		mParameters[key] = value;
 	}
@@ -42,7 +42,7 @@ public:
 	template<typename T> const T& get(const std::string& key)const
 	{
 		if (!exists(key))
-			thrower("Can't find key");
+			throw("Can't find key");
 
 		return boost::get<T>(mParameters.find(key)->second);
 	}
@@ -123,7 +123,7 @@ struct SetLoadFrequency : KA007_Message_Base
 		//process amplitude
 		//Percent to 16-bit number
 		auto ATW = p.get<double>("Amplitude");
-		if (ATW < 0.0 || ATW > 100.0) thrower("invalid amplitude");
+		if (ATW < 0.0 || ATW > 100.0) throw("invalid amplitude");
 		ATW *= 655.35;
 		int ATW_bits = (int)ATW;
 
@@ -133,7 +133,7 @@ struct SetLoadFrequency : KA007_Message_Base
 		//process phase
 		//Degrees to 12-bit
 		auto PTW = p.get<double>("Phase");
-		if (PTW < 0.0 || PTW > 360.0) thrower("invalid phase");
+		if (PTW < 0.0 || PTW > 360.0) throw("invalid phase");
 		PTW /= 360.0;
 		PTW *= 4096;
 		int PTW_bits = (int)PTW;
@@ -288,7 +288,7 @@ class KA007_MessageFactory
 public:
 	KA007_MessageFactory()
 	{
-		if (sizeof(unsigned long long int) != 8) thrower("unsigned long long int needs to be 64-bit wide");
+		if (sizeof(unsigned long long int) != 8) throw("unsigned long long int needs to be 64-bit wide");
 
 		factories[MessageSetting::LOADFREQUENCY] = [](KA007ParameterContainer params) {
 			auto bytes = SetLoadFrequency();

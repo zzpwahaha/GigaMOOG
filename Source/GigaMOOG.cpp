@@ -2,9 +2,12 @@
 //
 
 #include <iostream>
+#include <stdafx.h>
+#include <GigaMoogCore.h>
 
 int main()
 {
+    GigaMoogCore core("COM5", 115200);
     std::cout << "Hello World!\n";
 }
 

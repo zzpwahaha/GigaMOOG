@@ -1,18 +1,18 @@
 #pragma once 
 #include <iostream> 
-#include <GeneralObjects/IChimeraSystem.h>
-#include "Scripts/Script.h" 
-#include <Scripts/ScriptStream.h>
+//#include <GeneralObjects/IChimeraSystem.h>
+//#include "Scripts/Script.h" 
+//#include <Scripts/ScriptStream.h>
 #include <thread> 
 #include <chrono> 
 #include <windows.h> 
-#include <GigaMOOG/GigaMoogCore.h>
+#include <GigaMoogCore.h>
 
 
-class IChimeraQtWindow;
-class CQCheckBox;
+//class IChimeraQtWindow;
+//class CQCheckBox;
 
-class GigaMoogSystem : public IChimeraSystem
+class GigaMoogSystem
 {
 
 public:
@@ -20,22 +20,22 @@ public:
 	GigaMoogSystem& operator=(const GigaMoogSystem&) = delete;
 	GigaMoogSystem(const GigaMoogSystem&) = delete;
 
-	GigaMoogSystem(std::string portID, int baudrate, IChimeraQtWindow* parent);
+	GigaMoogSystem(std::string portID, int baudrate);
 	virtual ~GigaMoogSystem(void);
 
-	void initialize(IChimeraQtWindow* win);
+	//void initialize(IChimeraQtWindow* win);
 	// configs
-	void handleSaveConfig(ConfigStream& saveFile);
-	void handleOpenConfig(ConfigStream& openFile);
-	std::string getDelim() { return core.configDelim; }
+	//void handleSaveConfig(ConfigStream& saveFile);
+	//void handleOpenConfig(ConfigStream& openFile);
+	//std::string getDelim() { return core.configDelim; }
 	GigaMoogCore& getCore() { return core; }
 
 	//Attempt to parse moog script 
 	//void loadMoogScript(std::string scriptAddress); //should use gmoogScript.openParentScript instead
 
-	Script gmoogScript;
-	CQCheckBox* expActive;
-	std::string scriptAddress;
+	//Script gmoogScript;
+	//CQCheckBox* expActive;
+	//std::string scriptAddress;
 
 private:
 	// the moog script file contents get dumped into this. 

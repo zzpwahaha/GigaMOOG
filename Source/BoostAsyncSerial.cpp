@@ -5,6 +5,7 @@ BoostAsyncSerial::BoostAsyncSerial(std::string portID, int baudrate)
 	: portID(portID)
 	, baudrate(baudrate)
 {
+	bool GIGAMOOG_SAFEMODE = false;
 	if (!GIGAMOOG_SAFEMODE) {
 		//io_service_ = std::make_unique<boost::asio::io_service>(boost::asio::io_service());
 		port_ = std::make_unique<boost::asio::serial_port>(io_service_);
@@ -67,7 +68,7 @@ void BoostAsyncSerial::readhandler(const boost::system::error_code & error, std:
 	boost::mutex::scoped_lock look(mutex_);
 
 	if (error) {
-		thrower("Error reading from serial");
+		throw("Error reading from serial");
 	}
 	
 	port_->async_read_some(boost::asio::buffer(readbuffer), boost::bind(&BoostAsyncSerial::readhandler, this,
@@ -88,7 +89,7 @@ void BoostAsyncSerial::readhandler(const boost::system::error_code & error, std:
 void BoostAsyncSerial::write(std::vector<unsigned char> data)
 {
 	if (!port_->is_open()) {
-		thrower("Serial port has not been opened");
+		throw("Serial port has not been opened");
 	}
 	boost::asio::write(*port_, boost::asio::buffer(data));
 }
@@ -98,7 +99,7 @@ void BoostAsyncSerial::write(std::vector<int> data)
 	std::vector<unsigned char> converted(data.size());
 	for (int idx = 0; idx < data.size(); idx++) {
 		if(data[idx] < 0 || data[idx] >255){
-			thrower("Byte value needs to be in range 0-255");
+			throw("Byte value needs to be in range 0-255");
 		}
 		converted[idx] = data[idx];
 	}
@@ -113,11 +114,12 @@ void BoostAsyncSerial::write(std::vector<int> data)
 
 void BoostAsyncSerial::disconnect()
 {
+	bool GIGAMOOG_SAFEMODE = false;
 	if (GIGAMOOG_SAFEMODE) {
 		return;
 	}
 	if (!port_) {
-		thrower("port_ is already closed. Can not disconnect again");
+		throw("port_ is already closed. Can not disconnect again");
 	}
 	try {
 		io_service_.stop();
@@ -128,11 +130,11 @@ void BoostAsyncSerial::disconnect()
 			auto s = ec.message();
 		}
 		if (port_->is_open()) {
-			thrower("After port->close(), the port is still open??");
+			throw("After port->close(), the port is still open??");
 		}
 	}
 	catch (boost::system::system_error& ex) {
-		throwNested(ex.what());
+		throw(ex.what());
 	}
 	//io_service_.post([this]() {
 	//	io_service_.stop();
@@ -150,11 +152,12 @@ void BoostAsyncSerial::disconnect()
 
 void BoostAsyncSerial::reconnect()
 {
+	bool GIGAMOOG_SAFEMODE = false;
 	if (GIGAMOOG_SAFEMODE) {
 		return;
 	}
 	if (port_ && port_->is_open()/*io_service_.stopped()*/) {
-		thrower("port_ is already open. Can not connect again");
+		throw("port_ is already open. Can not connect again");
 	}
 	io_service_.restart();
 
@@ -163,7 +166,7 @@ void BoostAsyncSerial::reconnect()
 		port_->open(portID);
 	}
 	catch (boost::system::system_error& ex) {
-		throwNested(ex.what());
+		throw(ex.what());
 	}
 	port_->set_option(boost::asio::serial_port_base::baud_rate(baudrate));
 	port_->set_option(boost::asio::serial_port_base::character_size(8));
@@ -178,7 +181,7 @@ void BoostAsyncSerial::reconnect()
 void BoostAsyncSerial::read()
 {
 	if (!port_->is_open()) {
-		thrower("Serial port has not been opened");
+		throw("Serial port has not been opened");
 	}
 	port_->async_read_some(boost::asio::buffer(readbuffer), boost::bind(&BoostAsyncSerial::readhandler,
 		this,
