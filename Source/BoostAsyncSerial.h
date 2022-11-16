@@ -10,7 +10,6 @@ class BoostAsyncSerial
 public:
 	//this is just a simple constructor with default options
 	BoostAsyncSerial(std::string portID, int baudrate);
-	//constructor with all options available
 	BoostAsyncSerial(
 		std::string portID,
 		int baudrate,
@@ -35,6 +34,8 @@ private:
 	//std::unique_ptr<boost::asio::io_service> io_service_;
 	std::unique_ptr<boost::asio::serial_port> port_;
 	
+	std::atomic<bool> continue_read;
+
 	void read();
 	void run();
 	
@@ -45,7 +46,7 @@ private:
 		std::size_t bytes_transferred
 	);
 
-	boost::thread io_thread;
+	std::unique_ptr<boost::thread> io_thread;
 	boost::mutex mutex_;
 
 	boost::function<void(uint8_t)> read_callback_;

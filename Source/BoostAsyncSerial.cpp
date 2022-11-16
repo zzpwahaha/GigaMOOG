@@ -2,26 +2,11 @@
 #include "BoostAsyncSerial.h"
 
 BoostAsyncSerial::BoostAsyncSerial(std::string portID, int baudrate)
-	: portID(portID)
-	, baudrate(baudrate)
-{
-	bool GIGAMOOG_SAFEMODE = false;
-	if (!GIGAMOOG_SAFEMODE) {
-		//io_service_ = std::make_unique<boost::asio::io_service>(boost::asio::io_service());
-		port_ = std::make_unique<boost::asio::serial_port>(io_service_);
-
-		port_->open(portID);
-		port_->set_option(boost::asio::serial_port_base::baud_rate(baudrate));
-		port_->set_option(boost::asio::serial_port_base::character_size(8));
-		port_->set_option(boost::asio::serial_port_base::stop_bits(boost::asio::serial_port_base::stop_bits::one));
-		port_->set_option(boost::asio::serial_port_base::parity(boost::asio::serial_port_base::parity::none));
-		port_->set_option(boost::asio::serial_port_base::flow_control(boost::asio::serial_port_base::flow_control::none));
-
-		io_thread = boost::thread(boost::bind(&BoostAsyncSerial::run, this));
-		read();
-	}
-
-}
+	: BoostAsyncSerial(portID, baudrate, 8,
+		boost::asio::serial_port_base::stop_bits::one,
+		boost::asio::serial_port_base::parity::none,
+		boost::asio::serial_port_base::flow_control::none)
+{ }
 
 BoostAsyncSerial::BoostAsyncSerial(
 	std::string portID,
@@ -32,6 +17,7 @@ BoostAsyncSerial::BoostAsyncSerial(
 	boost::asio::serial_port_base::flow_control::type flow_control) 
 	: portID(portID)
 	, baudrate(baudrate)
+	, continue_read(true)
 {
 	port_ = std::make_unique<boost::asio::serial_port>(io_service_);
 
@@ -42,7 +28,11 @@ BoostAsyncSerial::BoostAsyncSerial(
 	port_->set_option(boost::asio::serial_port_base::parity(parity));
 	port_->set_option(boost::asio::serial_port_base::flow_control(flow_control));
 
-	io_thread = boost::thread(boost::bind(&BoostAsyncSerial::run, this));
+	io_thread = std::make_unique<boost::thread>(boost::bind(&BoostAsyncSerial::run, this));
+	//io_thread = boost::thread([]() {
+	//	std::cout << "caonima";
+	//	});
+	Sleep(1000);
 	read();
 }
 
@@ -55,7 +45,7 @@ BoostAsyncSerial::~BoostAsyncSerial()
 		port_->close();
 	}
 	
-	io_thread.join();
+	io_thread->join();
 }
 
 void BoostAsyncSerial::setReadCallback(const boost::function<void(int)>& read_callback)
@@ -66,15 +56,24 @@ void BoostAsyncSerial::setReadCallback(const boost::function<void(int)>& read_ca
 void BoostAsyncSerial::readhandler(const boost::system::error_code & error, std::size_t bytes_transferred)
 {
 	boost::mutex::scoped_lock look(mutex_);
-
+	std::cout << "BoostAsyncSerial::readhandler" << std::endl;
 	if (error) {
-		throw("Error reading from serial");
+		if (!continue_read) {
+			// probably due to the port closing, so just return
+			std::string s = error.message();
+			std::cout << "continue_read false: " << s << std::endl;
+		}
+		else {
+			std::string s = error.message();
+			throw("Error reading from serial: " + s);
+		}
 	}
-	
-	port_->async_read_some(boost::asio::buffer(readbuffer), boost::bind(&BoostAsyncSerial::readhandler, this,
-		boost::asio::placeholders::error,
-		boost::asio::placeholders::bytes_transferred
-	));
+	if (continue_read) {
+		port_->async_read_some(boost::asio::buffer(readbuffer), boost::bind(&BoostAsyncSerial::readhandler, this,
+			boost::asio::placeholders::error,
+			boost::asio::placeholders::bytes_transferred
+		));
+	}
 
 	int c;
 	for (int idx = 0; idx < bytes_transferred; idx++) {
@@ -122,12 +121,26 @@ void BoostAsyncSerial::disconnect()
 		throw("port_ is already closed. Can not disconnect again");
 	}
 	try {
-		io_service_.stop();
+		Sleep(1000);
+		//io_service_.stop();
+		continue_read = false;
+		Sleep(100);
 		if (port_) {
-			port_->cancel();
+			//io_service_.post([this]() {
+			//	//io_service_.stop();
+			//	port_->cancel();
+			//	port_->close();
+			//	//work->reset(); 
+			//	});
+			//Sleep(100);
+			
 			boost::system::error_code ec;
+			port_->cancel(ec);
+			auto s1 = ec.message();
 			port_->close(ec);
-			auto s = ec.message();
+			auto s2 = ec.message();
+			//io_service_.restart();
+
 		}
 		if (port_->is_open()) {
 			throw("After port->close(), the port is still open??");
@@ -144,10 +157,17 @@ void BoostAsyncSerial::disconnect()
 	//work.reset();
 	//io_service_.restart();
 	//io_thread.detach();
+	
 	work->reset();
+	work.reset();
 	//io_thread.interrupt();
-	io_thread.join();
-	io_service_.restart();
+	io_thread->join();
+	Sleep(100);
+	//io_service_.stop();
+	//io_service_.restart();
+	port_.reset();
+	//io_thread.reset();
+	Sleep(100);
 }
 
 void BoostAsyncSerial::reconnect()
@@ -166,6 +186,7 @@ void BoostAsyncSerial::reconnect()
 		port_->open(portID);
 	}
 	catch (boost::system::system_error& ex) {
+		std::string s = ex.what();
 		throw(ex.what());
 	}
 	port_->set_option(boost::asio::serial_port_base::baud_rate(baudrate));
@@ -174,7 +195,7 @@ void BoostAsyncSerial::reconnect()
 	port_->set_option(boost::asio::serial_port_base::parity(boost::asio::serial_port_base::parity::none));
 	port_->set_option(boost::asio::serial_port_base::flow_control(boost::asio::serial_port_base::flow_control::none));
 
-	io_thread = boost::thread(boost::bind(&BoostAsyncSerial::run, this));
+	io_thread.reset(new boost::thread(boost::bind(&BoostAsyncSerial::run, this)));
 	read();
 }
 
@@ -195,5 +216,7 @@ void BoostAsyncSerial::run()
 	//work = std::make_unique<boost::asio::io_service::work>(io_service_);
 	//work = boost::asio::make_work_guard(io_service_); // assigment operator is private, but not for copy. 
 	work = std::make_unique<work_guard>(boost::asio::make_work_guard(io_service_));
+	std::cout << "start run" << std::endl;
 	io_service_.run();
+	std::cout << "finally returned from run" << std::endl;
 }

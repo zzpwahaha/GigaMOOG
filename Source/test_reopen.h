@@ -1,3 +1,4 @@
+#pragma once
 #include <deque>
 #include <iostream>
 #include <boost/bind.hpp>
@@ -8,6 +9,7 @@
 #include <boost/date_time/posix_time/posix_time_types.hpp>
 
 #include <iostream>
+
 
 
 #ifdef POSIX
@@ -32,6 +34,21 @@ public:
 			return;
 		}
 		boost::asio::serial_port_base::baud_rate baud_option(baud);
+		serialPort.set_option(baud_option); // set the baud rate after the port has been opened
+		read_start();
+	}
+
+	void open(std::string const& portName)
+	{
+		serialPort.open(portName);
+
+		if (!serialPort.is_open())
+
+		{
+			cerr << "Failed to open serial port\n";
+			return;
+		}
+		boost::asio::serial_port_base::baud_rate baud_option(115200/*baudRate_*/);
 		serialPort.set_option(baud_option); // set the baud rate after the port has been opened
 		read_start();
 	}
@@ -63,16 +80,12 @@ private:
 			max_read_length),
 			boost::bind
 			(&minicom_client::read_complete,
-
 				this,
-
 				boost::asio::placeholders::error,
-
 				boost::asio::placeholders::bytes_transferred));
 	}
 
-	void read_complete(const boost::system::error_code& error, size_t
-		bytes_transferred)
+	void read_complete(const boost::system::error_code& error, size_t bytes_transferred)
 	{ // the asynchronous read operation has now completed or failed and returned an error
 		if (!error)
 		{ // read completed, so process the data
@@ -95,11 +108,8 @@ private:
 	{ // Start an asynchronous write and call write_complete when it completes or fails
 		boost::asio::async_write(serialPort,
 			boost::asio::buffer(&write_msgs_.front(), 1),
-			boost::bind
-			(&minicom_client::write_complete,
-
+			boost::bind(&minicom_client::write_complete,
 				this,
-
 				boost::asio::placeholders::error));
 	}
 
@@ -136,70 +146,67 @@ private:
 	deque<char> write_msgs_; // buffered write data
 };
 
-int main(int argc, char* argv[])
-{
-	// on Unix POSIX based systems, turn off line buffering of input, so cin.get() returns after every keypress
-		// On other systems, you'll need to look for an equivalent
-#ifdef POSIX
-	termios stored_settings;
-	tcgetattr(0, &stored_settings);
-	termios new_settings = stored_settings;
-	new_settings.c_lflag &= (~ICANON);
-	new_settings.c_lflag &= (~ISIG); // don't automatically handle control-
-	C
-		tcsetattr(0, TCSANOW, &new_settings);
-#endif
-	try
-	{
-		if (argc != 3)
-		{
-			cerr << "Usage: minicom <baud> <device>\n";
-			return 1;
-		}
 
-
-		boost::asio::io_service io_service;
-		// define an instance of the main class of this program
-		minicom_client c(io_service, boost::lexical_cast<unsigned int>
-			(argv[1]), argv[2]);
-		// run the IO service as a separate thread, so the main thread can block on standard input
-
-		while (true) // PROBLEM: reentering this loop fails - why?
-		{
-			boost::thread t(boost::bind
-			(&boost::asio::io_service::run, &io_service));
-
-			boost::asio::io_service io;
-			boost::asio::deadline_timer timer(io,
-				boost::posix_time::seconds(3));
-			timer.wait();
-
-			c.write('a');
-
-			boost::asio::deadline_timer timer2(io,
-				boost::posix_time::seconds(3));
-			timer2.wait();
-
-			//while (c.active()) // check the internal state of the connection to make sure it's still running
-				//{
-				// char ch;
-				// cin.get(ch); // blocking wait for standard input
-				// if (ch == 32) // ctrl-C to end program
-				// break;
-				// c.write(ch);
-				//}
-			c.close(); // close the minicom client connection
-			t.join(); // wait for the IO service thread to close
-			std::cout << "-------------------" << std::endl;
-		}
-	}
-	catch (exception& e)
-	{
-		cerr << "Exception: " << e.what() << "\n";
-	}
-#ifdef POSIX // restore default buffering of standard input
-	tcsetattr(0, TCSANOW, &stored_settings);
-#endif
-	return 0;
-}
-
+//int main(int argc, char* argv[])
+//{
+//	// on Unix POSIX based systems, turn off line buffering of input, so cin.get() returns after every keypress
+//		// On other systems, you'll need to look for an equivalent
+//#ifdef POSIX
+//	termios stored_settings;
+//	tcgetattr(0, &stored_settings);
+//	termios new_settings = stored_settings;
+//	new_settings.c_lflag &= (~ICANON);
+//	new_settings.c_lflag &= (~ISIG); // don't automatically handle control-
+//	C
+//		tcsetattr(0, TCSANOW, &new_settings);
+//#endif
+//	try
+//	{
+//		if (argc != 3)
+//		{
+//			cerr << "Usage: minicom <baud> <device>\n";
+//			return 1;
+//		}
+//
+//
+//		boost::asio::io_service io_service;
+//		// define an instance of the main class of this program
+//		minicom_client c(io_service, boost::lexical_cast<unsigned int>
+//			(argv[1]), argv[2]);
+//		// run the IO service as a separate thread, so the main thread can block on standard input
+//
+//		boost::thread t(boost::bind
+//		(&boost::asio::io_service::run, &io_service));
+//
+//		boost::asio::io_service io;
+//		boost::asio::deadline_timer timer(io,
+//			boost::posix_time::seconds(3));
+//		timer.wait();
+//
+//		c.write('a');
+//
+//		boost::asio::deadline_timer timer2(io,
+//			boost::posix_time::seconds(3));
+//		timer2.wait();
+//
+//		//while (c.active()) // check the internal state of the connection to make sure it's still running
+//			//{
+//			// char ch;
+//			// cin.get(ch); // blocking wait for standard input
+//			// if (ch == 32) // ctrl-C to end program
+//			// break;
+//			// c.write(ch);
+//			//}
+//		c.close(); // close the minicom client connection
+//		t.join(); // wait for the IO service thread to close
+//		std::cout << "-------------------" << std::endl;
+//	}
+//	catch (exception& e)
+//	{
+//		cerr << "Exception: " << e.what() << "\n";
+//	}
+//#ifdef POSIX // restore default buffering of standard input
+//	tcsetattr(0, TCSANOW, &stored_settings);
+//#endif
+//	return 0;
+//}
